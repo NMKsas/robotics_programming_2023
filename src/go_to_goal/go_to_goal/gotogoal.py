@@ -1,13 +1,11 @@
 #!/usr/bin/env python
 
 import rclpy
-import sys
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import Point
 from nav_msgs.msg import Odometry
 from tf_transformations import euler_from_quaternion
-from sensor_msgs.msg import JointState
 from math import pow, atan2, sqrt
 from rclpy.qos import ReliabilityPolicy, QoSProfile
 
@@ -18,7 +16,7 @@ Y = 1
 
 class TurtleBotController(Node):
 
-    def __init__(self, goal_x, goal_y, goal_angle=0.0):
+    def __init__(self, goal_x, goal_y, goal_angle=None):
         # Initialize the node
         super().__init__('tb3_controller')
 
@@ -30,7 +28,7 @@ class TurtleBotController(Node):
         self.pose_subscriber = self.create_subscription(Odometry, '/odom',
                                                         self.update_pose,
                                                         QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT))
-        self.timer = self.create_timer(1, self.move_to_pose)
+        self.timer = self.create_timer(1, self.move_to_point)
 
         self.roll = 0.0
         self.pitch = 0.0
@@ -50,7 +48,6 @@ class TurtleBotController(Node):
         (self.roll, self.pitch, self.yaw) = euler_from_quaternion(
             [quaternion.x, quaternion.y, quaternion.z, quaternion.w])
 
-
     def move_to_point(self):
         """Moves the turtle to the goal."""
         goal_pose = Point()
@@ -63,15 +60,13 @@ class TurtleBotController(Node):
         # Euclidian distance
         distance_to_goal = sqrt(pow(inc_x, 2) + pow(inc_y, 2))
         # Angle to goal
-        angle_to_goal = atan2(inc_y,inc_x)
-        #log_msg = 'DTG : {:.3f} ATG {:.3f}'.format(distance_to_goal,angle_to_goal)
-        #self.get_logger().info(log_msg)
+        angle_to_goal = atan2(inc_y, inc_x)
 
         dist_tol = 0.2
         ang_tol = 0.2
 
         angle_error = angle_to_goal - self.yaw
-        kp = 0.5
+        kp = 0.2
 
         vel_msg = Twist()
         if abs(angle_error) > ang_tol:
@@ -81,66 +76,29 @@ class TurtleBotController(Node):
             if distance_to_goal > dist_tol:
                 vel_msg.linear.x = kp * distance_to_goal
             else:
-                self.velocity_publisher.publish(Twist())
-                self.get_logger().info("Goal reached")
-                quit()
-        print(vel_msg)
-        self.velocity_publisher.publish(vel_msg)
-
-
-    def move_to_pose(self):
-
-        goal_pose = Point()
-        goal_pose.x = float(self.goal_x)
-        goal_pose.y = float(self.goal_y)
-
-        inc_x = goal_pose.x - self.x
-        inc_y = goal_pose.y - self.y
-
-        # Euclidian distance
-        distance_to_goal = sqrt(pow(inc_x, 2) + pow(inc_y, 2))
-        # Angle to goal
-        angle_to_point = atan2(inc_y,inc_x)
-        #log_msg = 'DTG : {:.3f} ATG {:.3f}'.format(distance_to_goal,angle_to_point)
-        #self.get_logger().info(log_msg)
-
-        dist_tol = 0.2
-        ang_tol = 0.2
-
-        angle_error = angle_to_point - self.yaw
-        kp = 0.5
-
-        vel_msg = Twist()
-        if abs(angle_error) > ang_tol:
-            vel_msg.linear.x = 0.0
-            vel_msg.angular.z = kp * angle_error
-        else:
-            if distance_to_goal > dist_tol:
-                vel_msg.linear.x = kp * distance_to_goal
-            else:
-                if (self.goal_angle != 0.0):
-
-                self.get_logger().info("Goal reached")
+                if self.goal_angle is not None:
+                    self.turn_to_angle()
                 self.stop_turtlebot()
-
-        print(vel_msg)
         self.velocity_publisher.publish(vel_msg)
 
     def turn_to_angle(self):
         angle_error = self.goal_angle - self.yaw
         vel_msg = Twist()
 
+        ang_tol = 0.2
+        kp = 0.5
+
         if abs(angle_error) > ang_tol:
             vel_msg.linear.x = 0.0
-            vel_msg.linear.x = kp * angle_error
+            vel_msg.angular.z = kp * angle_error
+            self.velocity_publisher.publish(vel_msg)
         else:
             self.get_logger().info("Goal angle reached")
-            self.stop_turtlebot()
-
 
     def stop_turtlebot(self):
         self.get_logger().info('Stopping the turtlebot')
         self.velocity_publisher.publish(Twist())
+        quit()
 
 
 def main(args=None):
@@ -155,8 +113,12 @@ def main(args=None):
     except ValueError:
         print("Invalid value! Give values in float format, using decimals (e.g., 2.0)")
         return
+    try:
+        goal_angle = float(input("Set your goal angle (optional): "))
+    except ValueError:
+        goal_angle = None
 
-    controller = TurtleBotController(goal_x, goal_y)
+    controller = TurtleBotController(goal_x, goal_y, goal_angle)
     try:
         while rclpy.ok():
             rclpy.spin(controller)
@@ -164,8 +126,6 @@ def main(args=None):
     except KeyboardInterrupt:
         controller.get_logger().info('Keyboard interrupt detected.')
 
-    controller.stop_turtlebot()
-    controller.destroy_node()
     rclpy.shutdown()
 
 

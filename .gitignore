@@ -3,3 +3,5 @@ build/
 install/
 
 src/turtlebot3_simulations/
+
+src/go_to_goal/go_to_goal/.idea/vcs.xml

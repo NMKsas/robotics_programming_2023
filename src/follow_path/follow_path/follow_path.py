@@ -30,12 +30,12 @@ class PathController(Node):
 
         # A subscriber to the topic '/odom'. self.update_pose is called
         # when a message of type Odometry is received.
-        self.get_logger('Subscribing /odom topic')
+        self.get_logger().info('Subscribing /odom topic')
         self.pose_subscriber = self.create_subscription(Odometry, '/odom',
                                                         self.update_pose,
                                                         QoSProfile(depth=10,
                                                                    reliability=ReliabilityPolicy.BEST_EFFORT))
-        self.get_logger('Publishing timer period set to 1')
+        self.get_logger().info('Publishing timer period set to 1')
         self.timer = self.create_timer(1, self.move_to_point)
 
         self.roll = 0.0

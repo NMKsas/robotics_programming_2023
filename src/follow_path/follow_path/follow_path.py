@@ -20,6 +20,11 @@ INVALID_VALUE = "Invalid"
 class PathController(Node):
 
     def __init__(self, goal_coordinate_list):
+        """
+        Constructor for TurtleBot3 proportional controller Node. Aims to move the bot
+        along a pre-determined path.
+        :param goal_coordinate_list: list of coordinates, in format [(x1,y1),(x2,y2),...,(xn,yn)]
+        """
         # Initialize the node
         super().__init__('path_controller')
         self.get_logger().info("Initializing controller node")
@@ -62,6 +67,7 @@ class PathController(Node):
         goal_pose.x = float(self.goal_x)
         goal_pose.y = float(self.goal_y)
 
+        # distance between the goal and the coordinate
         inc_x = goal_pose.x - self.x
         inc_y = goal_pose.y - self.y
 
@@ -74,6 +80,7 @@ class PathController(Node):
         dist_tol = 0.2
         ang_tol = 0.15
 
+        # constant for proportionality
         kp = 0.5
         angle_error = angle_to_goal - self.yaw
 
@@ -94,32 +101,48 @@ class PathController(Node):
             if distance_to_goal > dist_tol:
                 vel_msg.linear.x = kp * distance_to_goal
             else:
+                # both angle error and distance to goal are within the tolerance
                 self.goal_reached()
                 return
 
         self.velocity_publisher.publish(vel_msg)
 
     def goal_reached(self):
+        """
+        Once goal is reached, selects new goal or stops the turtlebot
+        """
+
+        # Log stats
         self.get_logger().info("Goal " + str(self.counter) + " reached in coordinates "
                                + str(self.goal_list[self.counter-1]))
-        self.get_logger().info("Path coordinates left: " + str(self.counter) + "/" + str(len(self.goal_x)))
+        self.get_logger().info("Path coordinates left: " + str(self.counter) + "/" + str(len(self.goal_list)))
+
+        # Stop movement with empty Twist()
         self.velocity_publisher.publish(Twist())
+
         if len(self.goal_list) == self.counter:
             self.get_logger().info("All goals reached.")
             self.stop_turtlebot()
         else:
             self.counter += 1
             self.get_logger().info("Commencing next movement...")
+
+            # Select next coordinate pair from the goal list
             self.goal_x = self.goal_list[self.counter-1][0]
             self.goal_y = self.goal_list[self.counter-1][1]
 
     def stop_turtlebot(self):
+        """ Stops the turtlebot and quits """
         self.get_logger().info('Stopping the turtlebot')
         self.velocity_publisher.publish(Twist())
         quit()
 
 
 def is_return_signal(input_value):
+    """
+    Return True, if input contains letter "R"
+    else, False
+    """
     string_input = str(input_value)
 
     if string_input.upper() == "R":
@@ -129,6 +152,10 @@ def is_return_signal(input_value):
 
 
 def is_exit_signal(input_value):
+    """
+    Return True, if input contains letter "Q"
+    else, False
+    """
     string_input = str(input_value)
 
     if string_input.upper() == "Q":
@@ -137,6 +164,12 @@ def is_exit_signal(input_value):
 
 
 def validate_coordinate(input_value):
+    """
+    Validates coordinate by trying to convert the input into float.
+    :param input_value: the user input for the coordinate
+    :return: coordinate as float, if the input is valid.
+             INVALID_VALUE if the value is invalid.
+    """
     try:
         coord = float(input_value)
         return coord
@@ -146,6 +179,10 @@ def validate_coordinate(input_value):
 
 
 def enter_points_manually():
+    """
+    Logic and menu for entering the coordinate points manually
+    :return: list of coordinate points in format [(x1,y1),(x2,y2),...,(xn,yn)]
+    """
     print("-----------------------------")
     print("Entering coordinates manually")
     print("-----------------------------")
@@ -175,6 +212,15 @@ def enter_points_manually():
 
 
 def parse_to_coordinate_list(file_path):
+    """
+    Opens a file and tries to read coordinate data. The file line must be in format
+    x,y
+    where x and y coordinates are separated with comma.
+    :param file_path: the complete path to the file
+    :return: QUIT signal if reading fails, or list of coordinates in format
+             [(x1,y1),(x2,y2),...,(xn,yn)]
+    """
+
     coordinate_list = []
     f = open(file_path, "r")
     lines = f.readlines()
@@ -200,10 +246,17 @@ def parse_to_coordinate_list(file_path):
     return coordinate_list
 
 
-def read_from_file(file_directory):
+def read_coordinates_from_file(file_directory):
+    """
+    Prints the entries in the given directory.
+    :param file_directory: the path to the directory
+    :return: List of coordinates in format [(x1,y1),(x2,y2),...,(xn,yn)],
+             QUIT signal if the directory is empty or no file is found,
+
+    """
     entries = os.listdir(file_directory)
     if len(entries) == 0:
-        print("No files in default directory '" + COORDINATES_DEFAULT_DIRECTORY + "'!")
+        print("No files in default directory '" + file_directory + "'!")
         return QUIT
 
     print("Files in the default directory: " + str(entries))
@@ -217,6 +270,10 @@ def read_from_file(file_directory):
 
 
 def is_list_empty(list_of_coordinates):
+    """
+    If list is empty, print custom message and return True
+    else, False
+    """
     if len(list_of_coordinates) == 0:
         print("The coordinate list is empty!")
         return True
@@ -224,7 +281,11 @@ def is_list_empty(list_of_coordinates):
 
 
 def init_ros_node(list_of_coordinates):
-
+    """
+    Initialize the ros node, with a list of goal coordinates
+    :param list_of_coordinates: list of coordinates in format
+                                [(x1,y1),(x2,y2),...,(xn,yn)]
+    """
     rclpy.init(args=None)
     controller = PathController(list_of_coordinates)
 
@@ -239,6 +300,10 @@ def init_ros_node(list_of_coordinates):
 
 
 def main():
+    """
+    Main menu for defining the coordinates before initializing the Ros2 Node
+    :return:
+    """
     list_of_coordinates = []
     while True:
         print("Enter M to define path manually")
@@ -250,7 +315,7 @@ def main():
         if choose_insertion_method.upper() == "M":
             list_of_coordinates = enter_points_manually()
         elif choose_insertion_method.upper() == "F":
-            list_of_coordinates = read_from_file(COORDINATES_DEFAULT_DIRECTORY)
+            list_of_coordinates = read_coordinates_from_file(COORDINATES_DEFAULT_DIRECTORY)
 
         if is_exit_signal(choose_insertion_method) or list_of_coordinates == QUIT \
                 or is_list_empty(list_of_coordinates):

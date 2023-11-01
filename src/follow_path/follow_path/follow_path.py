@@ -23,16 +23,19 @@ class PathController(Node):
     def __init__(self, goal_coordinate_list):
         # Initialize the node
         super().__init__('path_controller')
+        self.get_logger().info("Initializing controller node")
 
-        # Publisher which will publish to the topic '/turtle1/cmd_vel'.
+        self.get_logger().info('Creating publisher for /cmd_vel topic')
         self.velocity_publisher = self.create_publisher(Twist, '/cmd_vel', 10)
 
         # A subscriber to the topic '/odom'. self.update_pose is called
         # when a message of type Odometry is received.
+        self.get_logger('Subscribing /odom topic')
         self.pose_subscriber = self.create_subscription(Odometry, '/odom',
                                                         self.update_pose,
                                                         QoSProfile(depth=10,
                                                                    reliability=ReliabilityPolicy.BEST_EFFORT))
+        self.get_logger('Publishing timer period set to 1')
         self.timer = self.create_timer(1, self.move_to_point)
 
         self.roll = 0.0
@@ -100,12 +103,14 @@ class PathController(Node):
     def goal_reached(self):
         self.get_logger().info("Goal " + str(self.counter) + " reached in coordinates "
                                + str(self.goal_list[self.counter-1]))
+        self.get_logger().info("Path coordinates left: " + str(self.counter) + "/" + str(len(self.goal_x)))
         self.velocity_publisher.publish(Twist())
         if len(self.goal_list) == self.counter:
             self.get_logger().info("All goals reached.")
             self.stop_turtlebot()
         else:
             self.counter += 1
+            self.get_logger().info("Commencing next movement...")
             self.goal_x = self.goal_list[self.counter-1][0]
             self.goal_y = self.goal_list[self.counter-1][1]
 

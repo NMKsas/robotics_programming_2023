@@ -15,7 +15,6 @@ COORDINATES_DEFAULT_DIRECTORY = "/home/sasnmk/ros/turtlebot3_ws/coordinates/"
 
 QUIT = 1
 INVALID_VALUE = "Invalid"
-RETURN_LIST = 3
 
 
 class PathController(Node):
@@ -227,8 +226,8 @@ def is_list_empty(list_of_coordinates):
 def init_ros_node(list_of_coordinates):
 
     rclpy.init(args=None)
-
     controller = PathController(list_of_coordinates)
+
     try:
         while rclpy.ok():
             rclpy.spin(controller)

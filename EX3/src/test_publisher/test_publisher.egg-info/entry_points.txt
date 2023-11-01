@@ -1,2 +1,0 @@
-[console_scripts]
-test_publisher = test_publisher.test_publisher:main

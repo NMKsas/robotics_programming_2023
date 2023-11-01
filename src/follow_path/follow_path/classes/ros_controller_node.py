@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import Point
@@ -9,16 +8,12 @@ from tf_transformations import euler_from_quaternion
 from math import pow, atan2, sqrt
 from rclpy.qos import ReliabilityPolicy, QoSProfile
 
-# Goal constants
-X = 0
-Y = 1
 
+class PathController(Node):
 
-class TurtleBotController(Node):
-
-    def __init__(self, goal_x, goal_y, goal_angle=None):
+    def __init__(self, goal_coordinate_list):
         # Initialize the node
-        super().__init__('tb3_controller')
+        super().__init__('path_controller')
 
         # Publisher which will publish to the topic '/turtle1/cmd_vel'.
         self.velocity_publisher = self.create_publisher(Twist, '/cmd_vel', 10)
@@ -35,9 +30,10 @@ class TurtleBotController(Node):
         self.yaw = 0.0
         self.x = float()
         self.y = float()
-        self.goal_x = goal_x
-        self.goal_y = goal_y
-        self.goal_angle = goal_angle
+        self.goal_list = goal_coordinate_list
+        self.goal_x = goal_coordinate_list[0][0]
+        self.goal_y = goal_coordinate_list[0][1]
+        self.counter = 1
 
     def update_pose(self, odom_msg):
         """Callback function which is called when a new message of type Pose is
@@ -76,41 +72,22 @@ class TurtleBotController(Node):
             if distance_to_goal > dist_tol:
                 vel_msg.linear.x = kp * distance_to_goal
             else:
-                if self.goal_angle is not None:
-                    self.turn_to_angle()
-                self.stop_turtlebot()
+                self.goal_reached()
+
         self.velocity_publisher.publish(vel_msg)
 
-    def turn_to_angle(self):
-        angle_error = self.goal_angle - self.yaw
-        vel_msg = Twist()
-
-        ang_tol = 0.2
-        kp = 0.5
-
-        if abs(angle_error) > ang_tol:
-            vel_msg.linear.x = 0.0
-            vel_msg.angular.z = kp * angle_error
-            self.velocity_publisher.publish(vel_msg)
+    def goal_reached(self):
+        self.get_logger().info("Goal " + str(self.counter) + " reached in coordinates "
+                               + str(self.goal_list[self.counter]))
+        if len(self.goal_list) == self.counter:
+            self.get_logger().info("All goals reached.")
+            self.stop_turtlebot()
         else:
-            self.get_logger().info("Goal angle reached")
+            self.counter += 1
+            self.goal_x = self.goal_list[self.counter][0]
+            self.goal_y = self.goal_list[self.counter][1]
 
     def stop_turtlebot(self):
         self.get_logger().info('Stopping the turtlebot')
         self.velocity_publisher.publish(Twist())
         quit()
-
-
-def main(args=None):
-
-    rclpy.init(args=args)
-
-    controller = TurtleBotController(goal_x, goal_y, goal_angle)
-    try:
-        while rclpy.ok():
-            rclpy.spin(controller)
-
-    except KeyboardInterrupt:
-        controller.get_logger().info('Keyboard interrupt detected.')
-
-    rclpy.shutdown()

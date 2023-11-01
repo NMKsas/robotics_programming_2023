@@ -5,3 +5,22 @@ install/
 src/turtlebot3_simulations/
 
 src/go_to_goal/go_to_goal/.idea/vcs.xml
+
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST

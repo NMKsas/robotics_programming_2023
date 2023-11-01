@@ -15,11 +15,12 @@ setup(
     zip_safe=True,
     maintainer='sasnmk',
     maintainer_email='75199661+NMKsas@users.noreply.github.com',
-    description='TODO: Package description',
-    license='TODO: License declaration',
+    description='Controller for ros2 turtlebot3',
+    license='Apache License 2.0',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+		'path_controller = follow_path.follow_path:main'
         ],
     },
 )

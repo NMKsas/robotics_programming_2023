@@ -6,11 +6,11 @@ from geometry_msgs.msg import Twist
 from geometry_msgs.msg import Point
 from nav_msgs.msg import Odometry
 from tf_transformations import euler_from_quaternion
-from math import pow, atan2, sqrt
+from math import pow, atan2, sqrt, pi
 from rclpy.qos import ReliabilityPolicy, QoSProfile
 
 
-# Goal constants
+# Goal constants. Replace with wanted coordinate directory.
 COORDINATES_DEFAULT_DIRECTORY = "/home/sasnmk/ros/turtlebot3_ws/coordinates/"
 
 QUIT = 1
@@ -31,7 +31,8 @@ class PathController(Node):
         # when a message of type Odometry is received.
         self.pose_subscriber = self.create_subscription(Odometry, '/odom',
                                                         self.update_pose,
-                                                        QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT))
+                                                        QoSProfile(depth=10,
+                                                                   reliability=ReliabilityPolicy.BEST_EFFORT))
         self.timer = self.create_timer(1, self.move_to_point)
 
         self.roll = 0.0
@@ -67,34 +68,46 @@ class PathController(Node):
         # Angle to goal
         angle_to_goal = atan2(inc_y, inc_x)
 
+        # tolerance values
         dist_tol = 0.2
-        ang_tol = 0.2
+        ang_tol = 0.15
 
+        kp = 0.5
         angle_error = angle_to_goal - self.yaw
-        kp = 0.2
+
+        # If the angle error is larger than pi, change turning direction, dampen speed
+        if abs(angle_error) >= pi:
+            if angle_error >= 0:
+                angle_error -= pi
+            else:
+                angle_error += pi
 
         vel_msg = Twist()
+        # turn first
         if abs(angle_error) > ang_tol:
             vel_msg.linear.x = 0.0
             vel_msg.angular.z = kp * angle_error
         else:
+            # approach the goal
             if distance_to_goal > dist_tol:
                 vel_msg.linear.x = kp * distance_to_goal
             else:
                 self.goal_reached()
+                return
 
         self.velocity_publisher.publish(vel_msg)
 
     def goal_reached(self):
         self.get_logger().info("Goal " + str(self.counter) + " reached in coordinates "
                                + str(self.goal_list[self.counter-1]))
+        self.velocity_publisher.publish(Twist())
         if len(self.goal_list) == self.counter:
             self.get_logger().info("All goals reached.")
             self.stop_turtlebot()
         else:
             self.counter += 1
-            self.goal_x = self.goal_list[self.counter][0]
-            self.goal_y = self.goal_list[self.counter][1]
+            self.goal_x = self.goal_list[self.counter-1][0]
+            self.goal_y = self.goal_list[self.counter-1][1]
 
     def stop_turtlebot(self):
         self.get_logger().info('Stopping the turtlebot')

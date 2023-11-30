@@ -78,24 +78,26 @@ class PathController(Node):
 
         # tolerance values
         dist_tol = 0.2
-        ang_tol = 0.15
+        ang_tol = 0.2
 
         # constant for proportionality
-        kp = 0.5
+        kp = 0.3
+        kpa = 0.2
         angle_error = angle_to_goal - self.yaw
 
         # If the angle error is larger than pi, change turning direction, dampen speed
         if abs(angle_error) >= pi:
             if angle_error >= 0:
-                angle_error -= pi
+                angle_error -= 2*pi
             else:
-                angle_error += pi
-
+                angle_error += 2*pi
+      #  self.get_logger().info("Angle error: " + str(angle_error) + ", distance to goal: " + str(distance_to_goal))
+        
         vel_msg = Twist()
         # turn first
         if abs(angle_error) > ang_tol:
             vel_msg.linear.x = 0.0
-            vel_msg.angular.z = kp * angle_error
+            vel_msg.angular.z = kpa * angle_error
         else:
             # approach the goal
             if distance_to_goal > dist_tol:
